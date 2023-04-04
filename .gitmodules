@@ -1,0 +1,6 @@
+[submodule "mibu"]
+	path = mibu
+	url = https://github.com/xyaman/mibu.git
+[submodule "libs/mibu"]
+	url = https://github.com/xyaman/mibu.git
+	path = libs/mibu

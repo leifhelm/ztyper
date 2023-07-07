@@ -34,7 +34,7 @@ pub const TypingWidget = struct {
         return .{
             .allocator = allocator,
             .last_key = ' ',
-            .text = "The quick brown fox jumps over the lazy dog.",
+            .text = "The quick brown fox jumps over the lazy dog. " ** 3,
             .cursor = 0,
             .config = .{},
             .errors = ArrayList(u21).init(allocator),
@@ -47,8 +47,17 @@ pub const TypingWidget = struct {
         buffer.draw(Char.default(model.last_key), .{ .x = 2, .y = 1 }) catch unreachable;
         var text = createText(model) catch unreachable;
         defer text.deinit();
-        for (text.items) |char, index| {
-            buffer.draw(char, .{ .x = 2 + index, .y = 2 }) catch unreachable;
+        const x_max = buffer.bounding_box.bottom_right.x - 2;
+        var x: usize = 2;
+        var y: usize = 2;
+        for (text.items) |char| {
+            if (x >= x_max) {
+                buffer.draw(.{ .char = '~', .style = model.config.typed_style }, .{ .x = x, .y = y }) catch unreachable;
+                x = 2;
+                y += 1;
+            }
+            buffer.draw(char, .{ .x = x, .y = y }) catch unreachable;
+            x += 1;
         }
     }
     fn createText(model: Model) !ArrayList(Char) {

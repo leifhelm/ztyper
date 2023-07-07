@@ -27,30 +27,38 @@ pub fn Screen(comptime Model: type, comptime Msg: type, comptime program: Progra
     return struct {
         const Self = @This();
 
+        var self: ?Self = null;
+
         model: Model,
         term: TerminalBuffer,
 
-        pub fn init(allocator: Allocator) Error!Self {
-            return .{
+        pub fn init(allocator: Allocator) Error!void {
+            self = .{
                 .term = try TerminalBuffer.init(allocator),
                 .model = program.init(allocator),
             };
         }
 
-        pub fn deinit(self: *Self) void {
-            self.term.deinit();
-            program.deinit(&self.model);
+        pub fn deinit() void {
+            self.?.term.deinit();
+            program.deinit(&self.?.model);
         }
 
-        pub fn registerSigwinchHandler(self: *Self) Error!void {
+        pub fn resetTerm() void {
+            if(self) |*s| {
+                s.term.resetTerm();
+            }
+        }
+
+        pub fn registerSigwinchHandler() Error!void {
             const handlers = struct {
-                var global_self: *Self = undefined;
+                // var global_self: *Self = undefined;
                 fn handleSigwinch(_: c_int) callconv(.C) void {
-                    global_self.term.resize() catch return;
-                    global_self.render() catch return;
+                    self.?.term.resize() catch return;
+                    render() catch return;
                 }
             };
-            handlers.global_self = self;
+            // handlers.global_self = self;
             const act =
                 .{
                 .handler = .{ .handler = handlers.handleSigwinch },
@@ -62,26 +70,27 @@ pub fn Screen(comptime Model: type, comptime Msg: type, comptime program: Progra
             }
         }
 
-        fn render(self: *Self) Error!void {
+        fn render() Error!void {
             // self.root.window = self.term.buffer.getSlice().getBoundingBox();
-            for(self.term.buffer.buffer.items) |*char|{
+            for (self.?.term.buffer.buffer.items) |*char| {
                 char.* = Char.empty;
             }
-            program.view(self.model, self.term.buffer.getSlice());
-            self.term.swapBuffers() catch return Error.IoError;
+            program.view(self.?.model, self.?.term.buffer.getSlice());
+            self.?.term.swapBuffers() catch return Error.IoError;
         }
-        pub fn run(self: *Self) Error!void {
-            try self.render();
+
+        pub fn run() Error!void {
+            try render();
             var stdin = std.io.getStdIn();
 
             while (true) {
                 const event = events.next(stdin) catch return Error.IoError;
                 const msg = program.onTerminalEvent(event);
-                switch (program.update(msg, &self.model)) {
+                switch (program.update(msg, &self.?.model)) {
                     .none => {},
                     .exit => break,
                 }
-                try self.render();
+                try render();
             }
         }
     };
@@ -219,6 +228,10 @@ const TerminalBuffer = struct {
 
     fn deinit(self: *Self) void {
         self.buffer.deinit();
+        self.resetTerm();
+    }
+
+    fn resetTerm(self: *Self) void {
         mibu.private.disableAlternativeScreenBuffer(self.bw.writer()) catch {};
         mibu.cursor.show(self.bw.writer()) catch {};
         self.bw.flush() catch {};

@@ -45,7 +45,7 @@ pub fn main() !void {
     var word = ArrayList(u8).init(allocator);
     defer word.deinit();
     var i: usize = 0;
-    while (i < 100000) : (i += 1) {
+    while (i < 10000000) : (i += 1) {
         word.clearRetainingCapacity();
         const word_length = random.intRangeAtMostBiased(usize, 3, 8);
         const starting_char = random.intRangeAtMostBiased(u21, 'a', 'z');
@@ -89,7 +89,7 @@ pub const WordGenerator = struct {
                 };
                 sum += count;
             }
-            hash_map.putAssumeCapacityNoClobber(n_gram, Predictor{.list = entries, .sum = sum});
+            hash_map.putAssumeCapacityNoClobber(n_gram, Predictor{ .list = entries, .sum = sum });
         }
         return Self{
             .random = std.crypto.random,
@@ -114,7 +114,10 @@ pub const WordGenerator = struct {
         var i: usize = 1;
         while (i < length) : (i += 1) {
             const prev = str.items[prev_start..];
-            const char = self.hash_map.get(prev).?.nextRandomChar(self.random);
+            const char = if (self.hash_map.get(prev)) |predictor|
+                predictor.nextRandomChar(self.random)
+            else
+                self.random.intRangeAtMostBiased(u21, 'a', 'z');
             try writer.print("{u}", .{char});
             if (i > 2) {
                 prev_start += try std.unicode.utf8ByteSequenceLength(str.items[prev_start]);
@@ -142,7 +145,7 @@ pub const Predictor = struct {
                 return entry.char;
             }
         }
-        std.debug.print("rand: {d}, i: {d}, sum: {d}\n", .{rand, i, self.sum});
+        // std.debug.print("rand: {d}, i: {d}, sum: {d}\n", .{rand, i, self.sum});
         unreachable;
     }
 };

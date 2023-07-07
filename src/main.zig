@@ -15,17 +15,22 @@ pub fn main() !void {
         }
     }
     const allocator = gpa.allocator();
-    var app = ScreenApp.init(allocator) catch |err| {
+    ScreenApp.init(allocator) catch |err| {
         _ = stderr.write("Cannot initialze application\n") catch {};
         exitError(err);
     };
-    defer app.deinit();
-    app.registerSigwinchHandler() catch |err| exitError(err);
-    app.run() catch |err| exitError(err);
+    defer ScreenApp.deinit();
+    ScreenApp.registerSigwinchHandler() catch |err| exitError(err);
+    ScreenApp.run() catch |err| exitError(err);
 }
 
 const expect = std.testing.expect;
 const builtin = @import("builtin");
+
+pub fn panic(message: []const u8, stack_trace: ?*std.builtin.StackTrace, ret_addr: ?usize) noreturn {
+    ScreenApp.resetTerm();
+    std.debug.panicImpl( stack_trace, ret_addr, message);
+}
 
 test {
     std.testing.refAllDecls(@This());
